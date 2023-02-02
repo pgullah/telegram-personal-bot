@@ -44,10 +44,12 @@ def tunnel(update: Update, context: CallbackContext):
                 tunnel_api = TUNNEL_DOMAIN + '/' + tunnel_type
                 print('Invoking tunnel api:', tunnel_api)
                 if option == 'on':
-                    response = requests.put(tunnel_api).json()
-                    message = 'Tunnel Details: \n URL: {} \n Address:{}'.format(response['url'], response['remote_address'])
+                    response = requests.put(tunnel_api, timeout=5).json()
+                    message = 'Tunnel Details: \n URL: {}'.format(response['url'])
+                    if 'remote_address' in response:
+                        message = message + '\n Address:{}'.format(response['remote_address'])
                 else:
-                    response = requests.delete(tunnel_api)
+                    response = requests.delete(tunnel_api, timeout=5)
                     message = 'Tunnel is closed'
             except HTTPError as he:
                 message = 'Failed to turn {} the {} tunnel.'.format(option, tunnel_type)
