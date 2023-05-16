@@ -1,75 +1,71 @@
-import os
-from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, CallbackContext
+import traceback
+from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext, CallbackQueryHandler, InvalidCallbackData
 from telegram import Update
-from utils import AdminOnly
-import requests
-from requests.exceptions import HTTPError
+from commands import download, tunnel
+from common.decorators import AdminOnly
+from common import config
 
-TUNNEL_DOMAIN=os.environ.get('TUNNEL_DOMAIN', None)
-TOKEN_KEY = 'TOKEN'
-if TOKEN_KEY in os.environ:
-   print("Using token from environment")
-   TOKEN = os.environ[TOKEN_KEY]
-else:
-   import configparser
-   config = configparser.ConfigParser()
-   config.read(os.path.expanduser('~/.private/telegram/tokens.ini'))
-   config_key='PradAIBot'
-   bot_config=config[config_key]
-   TOKEN=bot_config[TOKEN_KEY]
-
-updater = Updater(token=TOKEN, use_context=True)
-dispatcher = updater.dispatcher
 
 @AdminOnly
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: CallbackContext):
     chat_id=update.effective_chat.id
     # args = context.args
-    context.bot.send_message(chat_id=chat_id, text="Hey Admin, please talk to me!")
+    context.bot.send_message(chat_id=chat_id, text="Hey Admin, please talk to me!")    
 
-@AdminOnly
-def tunnel(update: Update, context: CallbackContext):
-    chat_id=update.effective_chat.id
-    if not TUNNEL_DOMAIN:
-        context.bot.send_message(chat_id, text='Tunnel is not available')
-    
-    print("TUNNEL DOMAIN:", TUNNEL_DOMAIN)
-    args = context.args
-    if len(args) == 2:
-        tunnel_type=args[0].lower()
-        option = args[1].lower()
-        if option == 'on' or option == 'off':
-            method = requests.put if option == 'on' else requests.delete
-            try:
-                tunnel_api = TUNNEL_DOMAIN + '/' + tunnel_type
-                print('Invoking tunnel api:', tunnel_api)
-                if option == 'on':
-                    response = requests.put(tunnel_api, timeout=5).json()
-                    message = 'Tunnel Details: \n URL: {}'.format(response['url'])
-                    if 'remote_address' in response:
-                        message = message + '\n Address:{}'.format(response['remote_address'])
-                else:
-                    response = requests.delete(tunnel_api, timeout=5)
-                    message = 'Tunnel is closed'
-            except HTTPError as he:
-                message = 'Failed to turn {} the {} tunnel.'.format(option, tunnel_type)
-            except Exception as ex:
-                print('faile to open tunnel:', ex)
-                message = 'Unexpected error has occurred!: ' + str(ex)
-
-            context.bot.send_message(chat_id=chat_id, text=message)
-    else:
-        context.bot.send_message(chat_id=chat_id, text='Please specify tunnel and option')
-
-
-def echo(update: Update, context: CallbackContext):
+async def echo(update: Update, context: CallbackContext):
     context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry I can't understand your request!")
 
+async def error_handler(update: Update, context: CallbackContext) -> None:
+    """Log the error and send a telegram message to notify the developer."""
+    # Log the error before we do anything else, so we can see it even if something breaks.
+    print("Exception while handling an update:", context.error)
 
-dispatcher.add_handler(CommandHandler('start', start))
-dispatcher.add_handler(CommandHandler('tunnel', tunnel))
-## fallback handler
-dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    # traceback.format_exception returns the usual python message about an exception, but as a
+    # list of strings rather than a single string, so we have to join them together.
+    tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
+    tb_string = "".join(tb_list)
+    print("error desc:", tb_string)
+    if update.effective_chat:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I'm Unable to process your request. Please try after sometime.")
+    else:
+        print("Couldn't get any chat info!!")
+    # Build the message with some markup and additional information about what happened.
+    # You might need to add some logic to deal with messages longer than the 4096 character limit.
+    # update_str = update.to_dict() if isinstance(update, Update) else str(update)
+    # message = (
+    #     f"An exception was raised while handling an update\n"
+    #     f"<pre>update = {html.escape(json.dumps(update_str, indent=2, ensure_ascii=False))}"
+    #     "</pre>\n\n"
+    #     f"<pre>context.chat_data = {html.escape(str(context.chat_data))}</pre>\n\n"
+    #     f"<pre>context.user_data = {html.escape(str(context.user_data))}</pre>\n\n"
+    #     f"<pre>{html.escape(tb_string)}</pre>"
+    # )
 
-print("Started bot..")
-updater.start_polling()
+    # Finally, send the message
+    # context.bot.send_message(
+    #     chat_id=DEVELOPER_CHAT_ID, text=message, parse_mode=ParseMode.HTML
+    # )
+
+
+def main(): 
+    application = Application.builder().token(config.get_token()).arbitrary_callback_data(True).build()
+
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('tunnel', tunnel.call))
+    application.add_handler(CommandHandler('download', download.call))
+    # download
+    application.add_handler(CallbackQueryHandler(download.handle_invalid_button, pattern=InvalidCallbackData))
+    application.add_handler(CallbackQueryHandler(download.handle_reply))
+
+    ## fallback handler
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    # error handler
+    application.add_error_handler(error_handler)
+
+
+    print("Started bot..")
+    application.run_polling()
+    application.idle()
+
+if __name__ == "__main__":
+    main()
