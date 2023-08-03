@@ -1,19 +1,16 @@
 from pathlib import Path
-import sys
 from typing import List
 from telegram.ext import CallbackContext
 import urllib, ssl
 import requests
 import yt_dlp
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputMedia, InputTextMessageContent, KeyboardButton, ReplyKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from common.decorators import exit_after
 from common.models import Media, MediaMetadata
 from common.util import default_if_empty, find_handler
-from resp_parser import youtube, insta, generic
+from .resp_parser import youtube, insta, generic
 import filetype
 import urllib.parse
-from telegram.constants import ParseMode
-from html import escape
 from uuid import uuid4
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from uuid import uuid4
@@ -22,7 +19,7 @@ MIME_HANDLERS = {
     '^image': lambda context: context.bot.send_photo,
     '^video': lambda context: context.bot.send_video,
     '^audio': lambda context: context.bot.send_audio,
-    '^(?!text\/html).+': lambda context: context.bot.send_document
+    '^(?!text/html).+': lambda context: context.bot.send_document
 }
 
 RESP_PARSERS = {
@@ -30,7 +27,6 @@ RESP_PARSERS = {
     '^instagram' : lambda: insta, 
     '.*': lambda: generic,
 }
-
 
 def _find_url_handler(url, ):
     response = requests.get(url)
@@ -109,7 +105,7 @@ async def _send_embedded_files(update: Update, context: CallbackContext, input_u
 async def handle_reply(update: Update, context: CallbackContext):
     query = update.callback_query
     _, data = query.data
-    await query.answer("Please wait while I'm download the file...")
+    await query.answer("Please wait while I'm downloading the file...")
     context.args = [data]
 
     inline_keyboard_buttons = []
@@ -132,8 +128,7 @@ async def handle_invalid_button(update: Update, context: CallbackContext) -> Non
 
 async def call(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    args = context.args
-    url = args[0]
+    url = context.args[0]
     handler = _find_url_handler(url)
     if not handler:
         print("couldn't find the handler, finding embedded links")

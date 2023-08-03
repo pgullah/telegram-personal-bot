@@ -1,9 +1,8 @@
 from __future__ import print_function
 import sys
 import threading
-from time import sleep
 try:
-    import thread
+    import thread # pyright: ignore [reportMissingImports]
 except ImportError:
     import _thread as thread
 

@@ -1,7 +1,8 @@
 import traceback
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext, CallbackQueryHandler, InvalidCallbackData
 from telegram import Update
-from commands import download, tunnel
+from commands import tunnel
+from commands.download import download
 from common.decorators import AdminOnly
 from common import config
 
@@ -26,7 +27,7 @@ async def error_handler(update: Update, context: CallbackContext) -> None:
     tb_string = "".join(tb_list)
     print("error desc:", tb_string)
     if update.effective_chat:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I'm Unable to process your request. Please try after sometime.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I'm Unable to process your request. Please try after sometime.")
     else:
         print("Couldn't get any chat info!!")
     # Build the message with some markup and additional information about what happened.
