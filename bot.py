@@ -1,3 +1,4 @@
+import os
 import traceback
 from telegram.ext import Application, MessageHandler, filters, CommandHandler, CallbackContext, CallbackQueryHandler, InvalidCallbackData
 from telegram import Update
@@ -5,7 +6,9 @@ from commands import tunnel
 from commands.download import download
 from common.decorators import AdminOnly
 from common import config
+from dotenv_vault import load_dotenv
 
+load_dotenv()
 
 @AdminOnly
 async def start(update: Update, context: CallbackContext):
@@ -26,10 +29,13 @@ async def error_handler(update: Update, context: CallbackContext) -> None:
     tb_list = traceback.format_exception(None, context.error, context.error.__traceback__)
     tb_string = "".join(tb_list)
     print("error desc:", tb_string)
-    if update.effective_chat:
+    if update and update.effective_chat:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I'm Unable to process your request. Please try after sometime.")
     else:
         print("Couldn't get any chat info!!")
+        # send it to developer
+        await context.bot.send_message(chat_id=os.getenv("SUPPORT_CHAT_ID"), text="Sorry, I'm Unable to process your request. Please try after sometime.")
+
     # Build the message with some markup and additional information about what happened.
     # You might need to add some logic to deal with messages longer than the 4096 character limit.
     # update_str = update.to_dict() if isinstance(update, Update) else str(update)
