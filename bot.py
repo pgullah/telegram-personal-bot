@@ -56,20 +56,18 @@ async def error_handler(update: Update, context: CallbackContext) -> None:
 
 def main(): 
     application = Application.builder().token(config.get_token()).arbitrary_callback_data(True).build()
-
+    # supported commands
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('tunnel', tunnel.call))
     application.add_handler(CommandHandler('download', download.call))
-    # download
+    # Additional setup for /download command
+    # Ex: when a url contains multiples file, we prompt user to select specific one
     application.add_handler(CallbackQueryHandler(download.handle_invalid_button, pattern=InvalidCallbackData))
     application.add_handler(CallbackQueryHandler(download.handle_reply))
-
     ## fallback handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     # error handler
     application.add_error_handler(error_handler)
-
-
     print("Started bot..")
     application.run_polling()
     application.idle()

@@ -28,7 +28,7 @@ def __quit_function(fn_name):
 def exit_after(sec):
     '''
     use as decorator to exit process if 
-    function takes longer than s seconds
+    function takes longer than x seconds
     '''
     def outer(fn):
         def inner(*args, **kwargs):
